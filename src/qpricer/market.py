@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from qpricer._validation import require_non_negative, require_positive
+
 
 @dataclass(frozen=True, slots=True)
 class MarketData:
@@ -17,7 +19,5 @@ class MarketData:
     dividend_yield: float = 0.0
 
     def __post_init__(self) -> None:
-        if self.spot <= 0.0:
-            raise ValueError(f"spot must be positive, got {self.spot}")
-        if self.vol < 0.0:
-            raise ValueError(f"vol must be non-negative, got {self.vol}")
+        require_positive("spot", self.spot)
+        require_non_negative("vol", self.vol)
