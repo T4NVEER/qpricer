@@ -62,3 +62,27 @@ def put_price(
     return strike * math.exp(-rate * maturity) * norm_cdf(-d2) - spot * math.exp(
         -dividend_yield * maturity
     ) * norm_cdf(-d1)
+
+
+def call_delta(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return math.exp(-dividend_yield * maturity) * norm_cdf(d1)
+
+
+def put_delta(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return math.exp(-dividend_yield * maturity) * (norm_cdf(d1) - 1.0)
