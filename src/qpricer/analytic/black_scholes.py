@@ -86,3 +86,33 @@ def put_delta(
 ) -> float:
     d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
     return math.exp(-dividend_yield * maturity) * (norm_cdf(d1) - 1.0)
+
+
+def gamma(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    """Second derivative w.r.t. spot; identical for calls and puts."""
+    d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return (
+        math.exp(-dividend_yield * maturity)
+        * norm_pdf(d1)
+        / (spot * vol * math.sqrt(maturity))
+    )
+
+
+def vega(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    """Sensitivity to vol (per unit of vol, not per 1%); identical for calls and puts."""
+    d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return spot * math.exp(-dividend_yield * maturity) * norm_pdf(d1) * math.sqrt(maturity)
