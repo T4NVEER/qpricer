@@ -47,3 +47,18 @@ def call_price(
     return spot * math.exp(-dividend_yield * maturity) * norm_cdf(d1) - strike * math.exp(
         -rate * maturity
     ) * norm_cdf(d2)
+
+
+def put_price(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    """European put price under Black-Scholes."""
+    d1, d2 = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return strike * math.exp(-rate * maturity) * norm_cdf(-d2) - spot * math.exp(
+        -dividend_yield * maturity
+    ) * norm_cdf(-d1)
