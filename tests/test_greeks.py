@@ -1,6 +1,15 @@
 import math
 
-from qpricer.analytic.black_scholes import call_delta, gamma, put_delta, vega
+from qpricer.analytic.black_scholes import (
+    call_delta,
+    call_rho,
+    call_theta,
+    gamma,
+    put_delta,
+    put_rho,
+    put_theta,
+    vega,
+)
 
 PARAMS = {"spot": 100.0, "strike": 100.0, "maturity": 1.0, "rate": 0.05, "vol": 0.2}
 
@@ -41,3 +50,13 @@ def test_vega_positive_and_scales_with_spot() -> None:
     assert v > 0.0
     doubled = vega(**{**PARAMS, "spot": 200.0, "strike": 200.0})
     assert math.isclose(doubled, 2.0 * v, rel_tol=1e-12)
+
+
+def test_atm_theta_negative() -> None:
+    assert call_theta(**PARAMS) < 0.0
+    assert put_theta(**PARAMS) < 0.0
+
+
+def test_rho_signs() -> None:
+    assert call_rho(**PARAMS) > 0.0
+    assert put_rho(**PARAMS) < 0.0

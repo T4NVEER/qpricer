@@ -98,11 +98,7 @@ def gamma(
 ) -> float:
     """Second derivative w.r.t. spot; identical for calls and puts."""
     d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
-    return (
-        math.exp(-dividend_yield * maturity)
-        * norm_pdf(d1)
-        / (spot * vol * math.sqrt(maturity))
-    )
+    return math.exp(-dividend_yield * maturity) * norm_pdf(d1) / (spot * vol * math.sqrt(maturity))
 
 
 def vega(
@@ -116,3 +112,67 @@ def vega(
     """Sensitivity to vol (per unit of vol, not per 1%); identical for calls and puts."""
     d1, _ = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
     return spot * math.exp(-dividend_yield * maturity) * norm_pdf(d1) * math.sqrt(maturity)
+
+
+def call_theta(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    """Time decay per year (calendar convention: dV/dt, typically negative)."""
+    d1, d2 = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    df_q = math.exp(-dividend_yield * maturity)
+    df_r = math.exp(-rate * maturity)
+    diffusion = -spot * df_q * norm_pdf(d1) * vol / (2.0 * math.sqrt(maturity))
+    return (
+        diffusion
+        - rate * strike * df_r * norm_cdf(d2)
+        + dividend_yield * spot * df_q * norm_cdf(d1)
+    )
+
+
+def put_theta(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    d1, d2 = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    df_q = math.exp(-dividend_yield * maturity)
+    df_r = math.exp(-rate * maturity)
+    diffusion = -spot * df_q * norm_pdf(d1) * vol / (2.0 * math.sqrt(maturity))
+    return (
+        diffusion
+        + rate * strike * df_r * norm_cdf(-d2)
+        - dividend_yield * spot * df_q * norm_cdf(-d1)
+    )
+
+
+def call_rho(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    """Sensitivity to the risk-free rate (per unit of rate)."""
+    _, d2 = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return strike * maturity * math.exp(-rate * maturity) * norm_cdf(d2)
+
+
+def put_rho(
+    spot: float,
+    strike: float,
+    maturity: float,
+    rate: float,
+    vol: float,
+    dividend_yield: float = 0.0,
+) -> float:
+    _, d2 = d1_d2(spot, strike, maturity, rate, vol, dividend_yield)
+    return -strike * maturity * math.exp(-rate * maturity) * norm_cdf(-d2)
