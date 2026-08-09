@@ -1,4 +1,11 @@
-"""Cox-Ross-Rubinstein binomial tree for European options."""
+"""Cox-Ross-Rubinstein binomial tree for European options.
+
+Convergence: the CRR price approaches Black-Scholes with error O(1/steps),
+oscillating between even and odd step counts as the strike moves relative to
+the terminal node grid. Convergence comparisons should therefore hold step
+parity fixed (see tests), or average adjacent step counts to smooth the
+oscillation.
+"""
 
 import math
 
