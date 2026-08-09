@@ -2,6 +2,8 @@
 
 import math
 
+import numpy as np
+
 from qpricer._validation import require_positive
 from qpricer.instruments import EuropeanOption, OptionType
 from qpricer.market import MarketData
@@ -40,3 +42,21 @@ def crr_price_loop(option: EuropeanOption, market: MarketData, steps: int) -> fl
     for step in range(steps, 0, -1):
         values = [disc * (p * values[j + 1] + (1.0 - p) * values[j]) for j in range(step)]
     return values[0]
+
+
+def crr_price(option: EuropeanOption, market: MarketData, steps: int) -> float:
+    """CRR pricer with vectorized backward induction.
+
+    Same lattice as crr_price_loop; each induction step collapses the value
+    vector with one fused NumPy expression instead of a Python loop.
+    """
+    require_positive("steps", steps)
+    u, p, disc = _crr_params(market, option.maturity, steps)
+
+    exponents = np.arange(-steps, steps + 1, 2, dtype=np.float64)
+    terminal_spots = market.spot * np.exp(np.log(u) * exponents)
+    values = option.payoff(terminal_spots)
+
+    for _ in range(steps):
+        values = disc * (p * values[1:] + (1.0 - p) * values[:-1])
+    return float(values[0])
