@@ -12,6 +12,7 @@ import math
 import numpy as np
 
 from qpricer._validation import require_positive
+from qpricer.analytic.black_scholes import deterministic_price
 from qpricer.instruments import EuropeanOption, OptionType
 from qpricer.market import MarketData
 
@@ -35,6 +36,8 @@ def crr_price_loop(option: EuropeanOption, market: MarketData, steps: int) -> fl
     baseline for benchmarks; O(steps^2) node updates.
     """
     require_positive("steps", steps)
+    if option.maturity == 0.0 or market.vol == 0.0:
+        return deterministic_price(option, market)
     u, p, disc = _crr_params(market, option.maturity, steps)
 
     # Terminal option values at nodes j = 0..steps (j up-moves).
@@ -58,6 +61,8 @@ def crr_price(option: EuropeanOption, market: MarketData, steps: int) -> float:
     vector with one fused NumPy expression instead of a Python loop.
     """
     require_positive("steps", steps)
+    if option.maturity == 0.0 or market.vol == 0.0:
+        return deterministic_price(option, market)
     u, p, disc = _crr_params(market, option.maturity, steps)
 
     exponents = np.arange(-steps, steps + 1, 2, dtype=np.float64)

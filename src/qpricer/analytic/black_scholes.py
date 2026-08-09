@@ -181,21 +181,27 @@ def put_rho(
     return -strike * maturity * math.exp(-rate * maturity) * norm_cdf(-d2)
 
 
-def price(option: EuropeanOption, market: MarketData) -> float:
-    """Price a European option, including the deterministic T=0 and vol=0 limits.
+def deterministic_price(option: EuropeanOption, market: MarketData) -> float:
+    """Model-independent price when T=0 or vol=0.
 
-    With zero maturity the option is worth its intrinsic value; with zero vol the
-    terminal spot is the forward with certainty, so the price is the discounted
-    payoff of the forward.
+    With zero maturity the option is worth its intrinsic value; with zero vol
+    the terminal spot is the forward with certainty, so the price is the
+    discounted payoff of the forward. Every pricing method shares this limit.
     """
     t = option.maturity
+    forward = market.spot * math.exp((market.rate - market.dividend_yield) * t)
+    if option.option_type is OptionType.CALL:
+        intrinsic = max(forward - option.strike, 0.0)
+    else:
+        intrinsic = max(option.strike - forward, 0.0)
+    return math.exp(-market.rate * t) * intrinsic
+
+
+def price(option: EuropeanOption, market: MarketData) -> float:
+    """Price a European option, including the deterministic T=0 and vol=0 limits."""
+    t = option.maturity
     if t == 0.0 or market.vol == 0.0:
-        forward = market.spot * math.exp((market.rate - market.dividend_yield) * t)
-        if option.option_type is OptionType.CALL:
-            intrinsic = max(forward - option.strike, 0.0)
-        else:
-            intrinsic = max(option.strike - forward, 0.0)
-        return math.exp(-market.rate * t) * intrinsic
+        return deterministic_price(option, market)
 
     args = (market.spot, option.strike, t, market.rate, market.vol, market.dividend_yield)
     if option.option_type is OptionType.CALL:

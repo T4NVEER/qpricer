@@ -50,3 +50,12 @@ def test_first_order_convergence_to_black_scholes() -> None:
     errors = [abs(crr_price(CALL, MARKET, n) - exact) for n in (50, 100, 200, 400)]
     assert errors == sorted(errors, reverse=True)
     assert errors[0] / errors[-1] > 4.0  # ~8 expected for O(1/n) over 3 doublings
+
+
+@pytest.mark.parametrize("pricer", [crr_price, crr_price_loop], ids=["vectorized", "loop"])
+def test_deterministic_limits_match_analytic(pricer) -> None:  # type: ignore[no-untyped-def]
+    zero_vol = MarketData(spot=100.0, rate=0.05, vol=0.0)
+    assert math.isclose(pricer(CALL, zero_vol, 100), bs.price(CALL, zero_vol), rel_tol=1e-12)
+
+    expired = EuropeanOption(strike=90.0, maturity=0.0, option_type=OptionType.CALL)
+    assert pricer(expired, MARKET, 100) == 10.0
