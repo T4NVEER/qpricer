@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from qpricer.analytic.black_scholes import call_price
+from qpricer.analytic.black_scholes import call_price, put_price
 from qpricer.analytic.implied_vol import implied_vol
 from qpricer.instruments import OptionType
 
@@ -46,3 +46,20 @@ def test_price_below_intrinsic_rejected() -> None:
             rate=0.0,
             option_type=OptionType.PUT,
         )
+
+
+# Grid is restricted to |log-moneyness| / (vol * sqrt(T)) below ~4.5: beyond that
+# the extrinsic value approaches double-precision noise and vol is unrecoverable
+# from the price by any solver.
+@pytest.mark.parametrize("option_type", [OptionType.CALL, OptionType.PUT])
+@pytest.mark.parametrize("strike", [80.0, 90.0, 100.0, 110.0, 125.0])
+@pytest.mark.parametrize("maturity", [0.25, 1.0, 5.0])
+@pytest.mark.parametrize("vol", [0.1, 0.2, 0.8])
+def test_round_trip_across_grid(
+    option_type: OptionType, strike: float, maturity: float, vol: float
+) -> None:
+    params = {"spot": 100.0, "strike": strike, "maturity": maturity, "rate": 0.03}
+    price_fn = call_price if option_type is OptionType.CALL else put_price
+    target = price_fn(**params, vol=vol, dividend_yield=0.01)
+    iv = implied_vol(target, **params, option_type=option_type, dividend_yield=0.01)
+    assert math.isclose(iv, vol, rel_tol=1e-6)
