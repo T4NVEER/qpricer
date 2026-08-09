@@ -41,3 +41,12 @@ def test_vectorized_matches_loop_reference(option: EuropeanOption, steps: int) -
         crr_price_loop(option, MARKET, steps),
         rel_tol=1e-12,
     )
+
+
+def test_first_order_convergence_to_black_scholes() -> None:
+    # CRR error is O(1/n); compare same-parity step counts to avoid the
+    # even/odd oscillation. Doubling steps should roughly halve the error.
+    exact = bs.price(CALL, MARKET)
+    errors = [abs(crr_price(CALL, MARKET, n) - exact) for n in (50, 100, 200, 400)]
+    assert errors == sorted(errors, reverse=True)
+    assert errors[0] / errors[-1] > 4.0  # ~8 expected for O(1/n) over 3 doublings
