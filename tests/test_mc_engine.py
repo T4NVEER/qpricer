@@ -27,3 +27,12 @@ def test_sampler_seed_reproducibility() -> None:
 def test_sampler_all_positive() -> None:
     spots = sample_terminal_spots(MARKET, 5.0, 10_000, np.random.default_rng(0))
     assert (spots > 0.0).all()
+
+
+def test_mc_result_confidence_interval() -> None:
+    from qpricer.mc.engine import MCResult
+
+    res = MCResult(price=10.0, std_error=0.5, n_paths=1000)
+    lo, hi = res.confidence_interval()
+    assert math.isclose(hi - lo, 2.0 * 1.959963984540054 * 0.5)
+    assert math.isclose((lo + hi) / 2.0, 10.0)

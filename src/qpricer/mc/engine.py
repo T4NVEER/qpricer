@@ -6,11 +6,27 @@ bias. All randomness flows through an explicit numpy Generator.
 """
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
 
 from qpricer.market import MarketData
+
+_Z_95 = 1.959963984540054  # two-sided 95% quantile of the standard normal
+
+
+@dataclass(frozen=True, slots=True)
+class MCResult:
+    """Monte Carlo estimate with its statistical error."""
+
+    price: float
+    std_error: float
+    n_paths: int
+
+    def confidence_interval(self, z: float = _Z_95) -> tuple[float, float]:
+        half_width = z * self.std_error
+        return self.price - half_width, self.price + half_width
 
 
 def sample_terminal_spots(
