@@ -12,7 +12,7 @@ from qpricer._validation import require_positive
 from qpricer.analytic.black_scholes import deterministic_price
 from qpricer.instruments import EuropeanOption
 from qpricer.market import MarketData
-from qpricer.mc.engine import MCResult
+from qpricer.mc.engine import MCResult, sample_terminal_spots
 
 
 def mc_price_antithetic(
@@ -47,4 +47,40 @@ def mc_price_antithetic(
 
     price = float(pair_means.mean())
     std_error = float(pair_means.std(ddof=1) / math.sqrt(n_pairs))
+    return MCResult(price=price, std_error=std_error, n_paths=n_paths)
+
+
+def mc_price_control_variate(
+    option: EuropeanOption,
+    market: MarketData,
+    n_paths: int,
+    seed: int | None = None,
+) -> MCResult:
+    """Control variate: the discounted terminal spot, whose mean is known.
+
+    E[e^{-rT} S_T] = S0 e^{-qT} under the risk-neutral measure. The estimator
+    subtracts beta * (control sample mean - known mean), with beta chosen to
+    minimize variance (regression coefficient of payoff on control). Highly
+    effective for ITM options, where payoff and spot are strongly correlated.
+    """
+    require_positive("n_paths", n_paths)
+    if option.maturity == 0.0 or market.vol == 0.0:
+        return MCResult(price=deterministic_price(option, market), std_error=0.0, n_paths=n_paths)
+    if n_paths < 2:
+        raise ValueError("control variate needs at least 2 paths to estimate beta")
+
+    rng = np.random.default_rng(seed)
+    discount = math.exp(-market.rate * option.maturity)
+    spots = sample_terminal_spots(market, option.maturity, n_paths, rng)
+
+    payoffs = discount * option.payoff(spots)
+    control = discount * spots
+    control_mean_exact = market.spot * math.exp(-market.dividend_yield * option.maturity)
+
+    cov = np.cov(payoffs, control, ddof=1)
+    beta = float(cov[0, 1] / cov[1, 1])
+
+    adjusted = payoffs - beta * (control - control_mean_exact)
+    price = float(adjusted.mean())
+    std_error = float(adjusted.std(ddof=1) / math.sqrt(n_paths))
     return MCResult(price=price, std_error=std_error, n_paths=n_paths)
