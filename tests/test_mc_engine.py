@@ -71,3 +71,17 @@ def test_mc_std_error_shrinks_as_sqrt_n() -> None:
     se_large = mc_price(opt, MARKET, n_paths=1_000_000, seed=3).std_error
     ratio = se_small / se_large
     assert 8.0 < ratio < 12.0  # sqrt(100) = 10 expected
+
+
+def test_mc_price_reproducible_with_seed() -> None:
+    opt = EuropeanOption(strike=100.0, maturity=1.0, option_type=OptionType.CALL)
+    a = mc_price(opt, MARKET, n_paths=100_000, seed=99)
+    b = mc_price(opt, MARKET, n_paths=100_000, seed=99)
+    assert a == b
+
+
+def test_mc_price_varies_across_seeds() -> None:
+    opt = EuropeanOption(strike=100.0, maturity=1.0, option_type=OptionType.CALL)
+    assert (
+        mc_price(opt, MARKET, 10_000, seed=1).price != mc_price(opt, MARKET, 10_000, seed=2).price
+    )
