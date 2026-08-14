@@ -85,3 +85,17 @@ def test_mc_price_varies_across_seeds() -> None:
     assert (
         mc_price(opt, MARKET, 10_000, seed=1).price != mc_price(opt, MARKET, 10_000, seed=2).price
     )
+
+
+def test_batched_price_close_to_unbatched() -> None:
+    opt = EuropeanOption(strike=100.0, maturity=1.0, option_type=OptionType.CALL)
+    full = mc_price(opt, MARKET, n_paths=200_000, seed=5)
+    batched = mc_price(opt, MARKET, n_paths=200_000, seed=5, batch_size=7_919)
+    assert math.isclose(full.price, batched.price, rel_tol=1e-12)
+    assert math.isclose(full.std_error, batched.std_error, rel_tol=1e-9)
+
+
+def test_batch_size_larger_than_n_paths() -> None:
+    opt = EuropeanOption(strike=100.0, maturity=1.0, option_type=OptionType.CALL)
+    res = mc_price(opt, MARKET, n_paths=1_000, seed=5, batch_size=10_000)
+    assert res.n_paths == 1_000
