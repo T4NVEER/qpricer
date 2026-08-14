@@ -2,8 +2,8 @@ import math
 
 import numpy as np
 
-from qpricer import MarketData
-from qpricer.mc.engine import sample_terminal_spots
+from qpricer import EuropeanOption, MarketData, OptionType
+from qpricer.mc.engine import mc_price, sample_terminal_spots
 
 MARKET = MarketData(spot=100.0, rate=0.05, vol=0.2, dividend_yield=0.01)
 
@@ -36,3 +36,18 @@ def test_mc_result_confidence_interval() -> None:
     lo, hi = res.confidence_interval()
     assert math.isclose(hi - lo, 2.0 * 1.959963984540054 * 0.5)
     assert math.isclose((lo + hi) / 2.0, 10.0)
+
+
+def test_mc_price_returns_finite_estimate() -> None:
+    opt = EuropeanOption(strike=100.0, maturity=1.0, option_type=OptionType.CALL)
+    res = mc_price(opt, MARKET, n_paths=50_000, seed=1)
+    assert res.price > 0.0
+    assert res.std_error > 0.0
+    assert res.n_paths == 50_000
+
+
+def test_mc_price_deterministic_limits() -> None:
+    expired = EuropeanOption(strike=90.0, maturity=0.0, option_type=OptionType.CALL)
+    res = mc_price(expired, MARKET, n_paths=10)
+    assert res.price == 10.0
+    assert res.std_error == 0.0

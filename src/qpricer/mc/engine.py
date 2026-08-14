@@ -11,6 +11,9 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
+from qpricer._validation import require_positive
+from qpricer.analytic.black_scholes import deterministic_price
+from qpricer.instruments import EuropeanOption
 from qpricer.market import MarketData
 
 _Z_95 = 1.959963984540054  # two-sided 95% quantile of the standard normal
@@ -40,3 +43,27 @@ def sample_terminal_spots(
     diffusion = market.vol * math.sqrt(maturity)
     z = rng.standard_normal(n_paths)
     return market.spot * np.exp(drift + diffusion * z)
+
+
+def mc_price(
+    option: EuropeanOption,
+    market: MarketData,
+    n_paths: int,
+    seed: int | None = None,
+) -> MCResult:
+    """Price a European option by Monte Carlo.
+
+    The estimator is the discounted sample mean of the terminal payoff; the
+    reported standard error is the sample standard deviation / sqrt(n_paths).
+    """
+    require_positive("n_paths", n_paths)
+    if option.maturity == 0.0 or market.vol == 0.0:
+        return MCResult(price=deterministic_price(option, market), std_error=0.0, n_paths=n_paths)
+
+    rng = np.random.default_rng(seed)
+    spots = sample_terminal_spots(market, option.maturity, n_paths, rng)
+    discounted = math.exp(-market.rate * option.maturity) * option.payoff(spots)
+
+    price = float(discounted.mean())
+    std_error = float(discounted.std(ddof=1) / math.sqrt(n_paths))
+    return MCResult(price=price, std_error=std_error, n_paths=n_paths)
