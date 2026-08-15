@@ -6,6 +6,7 @@ from qpricer.mc.variance_reduction import (
     mc_price_antithetic,
     mc_price_antithetic_cv,
     mc_price_control_variate,
+    variance_ratios,
 )
 
 MARKET = MarketData(spot=100.0, rate=0.05, vol=0.2, dividend_yield=0.01)
@@ -69,3 +70,10 @@ def test_combined_beats_each_single_technique() -> None:
 def test_combined_rejects_odd_paths() -> None:
     with pytest.raises(ValueError, match="even"):
         mc_price_antithetic_cv(CALL, MARKET, n_paths=999, seed=17)
+
+
+def test_variance_ratios_all_exceed_one() -> None:
+    ratios = variance_ratios(CALL, MARKET, n_paths=100_000, seed=19)
+    assert set(ratios) == {"antithetic", "control_variate", "antithetic_cv"}
+    assert all(r > 1.0 for r in ratios.values())
+    assert ratios["antithetic_cv"] > ratios["antithetic"]

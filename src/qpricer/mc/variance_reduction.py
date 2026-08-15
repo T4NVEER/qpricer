@@ -12,7 +12,7 @@ from qpricer._validation import require_positive
 from qpricer.analytic.black_scholes import deterministic_price
 from qpricer.instruments import EuropeanOption
 from qpricer.market import MarketData
-from qpricer.mc.engine import MCResult, sample_terminal_spots
+from qpricer.mc.engine import MCResult, mc_price, sample_terminal_spots
 
 
 def mc_price_antithetic(
@@ -127,3 +127,26 @@ def mc_price_antithetic_cv(
     price = float(adjusted.mean())
     std_error = float(adjusted.std(ddof=1) / math.sqrt(n_pairs))
     return MCResult(price=price, std_error=std_error, n_paths=n_paths)
+
+
+def variance_ratios(
+    option: EuropeanOption,
+    market: MarketData,
+    n_paths: int,
+    seed: int | None = None,
+) -> dict[str, float]:
+    """Variance reduction factor of each technique vs plain MC at equal n_paths.
+
+    A ratio of R means the technique needs ~R times fewer paths than plain MC
+    for the same standard error.
+    """
+    plain = mc_price(option, market, n_paths, seed=seed)
+    techniques = {
+        "antithetic": mc_price_antithetic,
+        "control_variate": mc_price_control_variate,
+        "antithetic_cv": mc_price_antithetic_cv,
+    }
+    return {
+        name: (plain.std_error / fn(option, market, n_paths, seed=seed).std_error) ** 2
+        for name, fn in techniques.items()
+    }
