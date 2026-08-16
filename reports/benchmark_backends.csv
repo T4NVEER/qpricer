@@ -1,0 +1,10 @@
+n_paths,backend,median_ms,speedup_vs_numpy
+100000,numpy,2.241,1.0
+100000,numba,1.307,1.72
+100000,numba_parallel,1.463,1.53
+1000000,numpy,28.765,1.0
+1000000,numba,13.342,2.16
+1000000,numba_parallel,11.677,2.46
+10000000,numpy,386.531,1.0
+10000000,numba,164.029,2.36
+10000000,numba_parallel,136.1,2.84
