@@ -42,3 +42,18 @@ def test_parallel_kernel_matches_serial() -> None:
     total_p, sq_p = numba_kernels.payoff_sums_parallel(*args)
     assert math.isclose(total_s, total_p, rel_tol=1e-10)
     assert math.isclose(sq_s, sq_p, rel_tol=1e-10)
+
+
+@pytest.mark.parametrize("backend", ["numba", "numba_parallel"])
+def test_engine_backends_match_numpy(backend: str) -> None:
+    n, seed = 200_000, 47
+    numpy_res = mc_price(CALL, MARKET, n, seed=seed)
+    numba_res = mc_price(CALL, MARKET, n, seed=seed, backend=backend)  # type: ignore[arg-type]
+    assert math.isclose(numba_res.price, numpy_res.price, rel_tol=1e-10)
+    assert math.isclose(numba_res.std_error, numpy_res.std_error, rel_tol=1e-8)
+
+
+def test_engine_backend_batching_consistent() -> None:
+    full = mc_price(CALL, MARKET, 100_000, seed=53, backend="numba")
+    batched = mc_price(CALL, MARKET, 100_000, seed=53, backend="numba", batch_size=9_973)
+    assert math.isclose(full.price, batched.price, rel_tol=1e-12)
