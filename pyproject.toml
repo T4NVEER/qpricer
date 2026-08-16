@@ -56,9 +56,11 @@ module = "numba.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# numba's njit decorator is untyped; kernels keep full annotations regardless.
+# numba's njit/prange are untyped; kernels keep full annotations regardless.
 module = "qpricer.mc.numba_kernels"
 disallow_untyped_decorators = false
+disallow_untyped_calls = false
+disable_error_code = ["attr-defined"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

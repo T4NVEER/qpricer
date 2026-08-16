@@ -16,7 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 try:
-    from numba import njit
+    from numba import njit, prange
 
     NUMBA_AVAILABLE = True
 except ImportError:  # pragma: no cover - exercised only without the extra
@@ -42,6 +42,32 @@ def payoff_sums_serial(
     return _payoff_sums_serial(z, spot, strike, sign, drift, diffusion, discount)
 
 
+def payoff_sums_parallel(
+    z: NDArray[np.float64],
+    spot: float,
+    strike: float,
+    sign: float,
+    drift: float,
+    diffusion: float,
+    discount: float,
+) -> tuple[float, float]:
+    """Multithreaded variant of payoff_sums_serial (prange reduction).
+
+    Thread count follows numba's defaults (all cores); the reduction order is
+    nondeterministic, so expect ~1e-12 relative wobble between runs.
+    """
+    _require_numba()
+    return _payoff_sums_parallel(z, spot, strike, sign, drift, diffusion, discount)
+
+
+def warm_up() -> None:
+    """Trigger JIT compilation so benchmarks exclude compile time."""
+    _require_numba()
+    z = np.zeros(2)
+    payoff_sums_serial(z, 100.0, 100.0, 1.0, 0.0, 0.2, 1.0)
+    payoff_sums_parallel(z, 100.0, 100.0, 1.0, 0.0, 0.2, 1.0)
+
+
 if NUMBA_AVAILABLE:
 
     @njit(cache=True, fastmath=True)
@@ -57,6 +83,28 @@ if NUMBA_AVAILABLE:
         total = 0.0
         total_sq = 0.0
         for i in range(len(z)):
+            s_t = spot * math.exp(drift + diffusion * z[i])
+            payoff = sign * (s_t - strike)
+            if payoff < 0.0:
+                payoff = 0.0
+            value = discount * payoff
+            total += value
+            total_sq += value * value
+        return total, total_sq
+
+    @njit(cache=True, fastmath=True, parallel=True)
+    def _payoff_sums_parallel(
+        z: NDArray[np.float64],
+        spot: float,
+        strike: float,
+        sign: float,
+        drift: float,
+        diffusion: float,
+        discount: float,
+    ) -> tuple[float, float]:
+        total = 0.0
+        total_sq = 0.0
+        for i in prange(len(z)):
             s_t = spot * math.exp(drift + diffusion * z[i])
             payoff = sign * (s_t - strike)
             if payoff < 0.0:
