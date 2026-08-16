@@ -32,3 +32,13 @@ def test_serial_kernel_matches_numpy_engine(option_type: OptionType) -> None:
     numpy_ref = mc_price(opt, MARKET, n, seed=seed).price
     # Same normals; fastmath only reorders the summation.
     assert math.isclose(kernel, numpy_ref, rel_tol=1e-10)
+
+
+def test_parallel_kernel_matches_serial() -> None:
+    numba_kernels.warm_up()
+    z = np.random.default_rng(43).standard_normal(200_000)
+    args = (z, 100.0, 105.0, 1.0, 0.03, 0.2, 0.95)
+    total_s, sq_s = numba_kernels.payoff_sums_serial(*args)
+    total_p, sq_p = numba_kernels.payoff_sums_parallel(*args)
+    assert math.isclose(total_s, total_p, rel_tol=1e-10)
+    assert math.isclose(sq_s, sq_p, rel_tol=1e-10)
