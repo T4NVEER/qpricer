@@ -39,6 +39,23 @@ The quadratic cost of accuracy: 0.5% error needs 4× that, 0.1% needs 100×.
 
 Reproduce with `python scripts/run_convergence.py`.
 
+### How much faster is Numba than plain NumPy?
+
+The numba kernels fuse exp, payoff and accumulation into one allocation-free
+pass over pre-drawn normals (median of 7 runs, JIT warm-up excluded, WSL2):
+
+| paths | NumPy | numba | numba speedup | numba_parallel speedup |
+|---|---|---|---|---|
+| 100,000 | 2.2 ms | 1.3 ms | 1.7× | 1.5× |
+| 1,000,000 | 28.8 ms | 13.3 ms | 2.2× | 2.5× |
+| 10,000,000 | 386.5 ms | 164.0 ms | 2.4× | 2.8× |
+
+All backends share the NumPy random draws, which cost roughly a third of the
+NumPy runtime — an Amdahl's-law ceiling on the achievable speedup. Parallelism
+only pays above ~1M paths; below that, thread startup dominates.
+
+Reproduce with `python benchmarks/bench_mc.py`.
+
 ## Roadmap
 
 - [x] Core instrument and market data types
