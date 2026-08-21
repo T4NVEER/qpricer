@@ -41,11 +41,19 @@ def sample_terminal_spots(
     n_paths: int,
     rng: np.random.Generator,
 ) -> NDArray[np.float64]:
-    """Draw terminal spots S_T = S0 * exp((r - q - vol^2/2) T + vol sqrt(T) Z)."""
+    """Draw terminal spots S_T = S0 * exp((r - q - vol^2/2) T + vol sqrt(T) Z).
+
+    All ufuncs write into the z buffer: profiling showed the naive expression
+    spends more time allocating temporaries than computing (reports/profiling.md).
+    """
     drift = (market.rate - market.dividend_yield - 0.5 * market.vol**2) * maturity
     diffusion = market.vol * math.sqrt(maturity)
     z = rng.standard_normal(n_paths)
-    return market.spot * np.exp(drift + diffusion * z)
+    z *= diffusion
+    z += drift
+    np.exp(z, out=z)
+    z *= market.spot
+    return z
 
 
 def mc_price(
@@ -98,9 +106,10 @@ def mc_price(
         n = min(batch, remaining)
         if backend == "numpy":
             spots = sample_terminal_spots(market, option.maturity, n, rng)
-            discounted = discount * option.payoff(spots)
+            discounted = option.payoff(spots)
+            discounted *= discount
             total += float(discounted.sum())
-            total_sq += float((discounted * discounted).sum())
+            total_sq += float(np.dot(discounted, discounted))
         else:
             z = rng.standard_normal(n)
             batch_total, batch_sq = kernel(
