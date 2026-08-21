@@ -42,17 +42,22 @@ Reproduce with `python scripts/run_convergence.py`.
 ### How much faster is Numba than plain NumPy?
 
 The numba kernels fuse exp, payoff and accumulation into one allocation-free
-pass over pre-drawn normals (median of 7 runs, JIT warm-up excluded, WSL2):
+pass over pre-drawn normals (median of 7 runs, JIT warm-up excluded, WSL2;
+NumPy column is after the profiling-driven in-place optimization — see
+`reports/profiling.md`):
 
 | paths | NumPy | numba | numba speedup | numba_parallel speedup |
 |---|---|---|---|---|
-| 100,000 | 2.2 ms | 1.3 ms | 1.7× | 1.5× |
-| 1,000,000 | 28.8 ms | 13.3 ms | 2.2× | 2.5× |
-| 10,000,000 | 386.5 ms | 164.0 ms | 2.4× | 2.8× |
+| 100,000 | 3.1 ms | 2.2 ms | 1.4× | 2.0× |
+| 1,000,000 | 35.6 ms | 21.8 ms | 1.6× | 2.6× |
+| 10,000,000 | 316.4 ms | 155.2 ms | 2.0× | 2.5× |
 
 All backends share the NumPy random draws, which cost roughly a third of the
 NumPy runtime — an Amdahl's-law ceiling on the achievable speedup. Parallelism
-only pays above ~1M paths; below that, thread startup dominates.
+only pays around ~1M paths and above; below that, thread startup dominates and
+small-N timings are noisy. Optimizing the NumPy path (10M: 386 → 315 ms by
+removing temporary allocations) narrowed numba's edge from 2.4× to 2.0×: both
+attack the same memory-traffic problem, by fusion or by in-place ufuncs.
 
 Reproduce with `python benchmarks/bench_mc.py`.
 
