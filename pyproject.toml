@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qpricer"
-version = "0.0.1"
+version = "0.1.0"
 description = "European option pricing: analytic, lattice and Monte Carlo methods with accuracy and performance analysis"
 readme = "README.md"
 license = { file = "LICENSE" }

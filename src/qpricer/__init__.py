@@ -13,7 +13,7 @@ from qpricer.mc.variance_reduction import (
 )
 from qpricer.tree.binomial import crr_price
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 __all__ = [
     "EuropeanOption",
