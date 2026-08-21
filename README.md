@@ -4,18 +4,50 @@ A Python library for pricing European vanilla options with multiple numerical
 methods, quantifying their accuracy against the Black–Scholes closed form, and
 benchmarking their performance.
 
-## Goals
+Built as a study of how the standard pricing methods trade accuracy for
+compute: every claim below is reproducible from a committed script, every
+estimator is tested against the closed form, and the performance work is
+profiling-driven rather than speculative.
 
-The library answers four questions with reproducible numbers:
+## Install
 
-1. How close is Monte Carlo to Black–Scholes?
-2. How many simulations are needed for 1% pricing error?
-3. How much faster is Numba than plain NumPy?
-4. How effective are variance reduction techniques?
+```bash
+pip install -e .                        # core: numpy only
+pip install -e ".[perf,analysis,dev]"   # numba kernels, plots, test tooling
+```
+
+## Quickstart
+
+```python
+from qpricer import EuropeanOption, MarketData, OptionType, bs_price, crr_price, mc_price
+
+market = MarketData(spot=100.0, rate=0.05, vol=0.2, dividend_yield=0.01)
+call = EuropeanOption(strike=105.0, maturity=1.0, option_type=OptionType.CALL)
+
+bs_price(call, market)                        # 7.4917 (closed form)
+crr_price(call, market, steps=1000)           # 7.4915 (binomial tree)
+res = mc_price(call, market, n_paths=1_000_000, seed=42)
+res.price, res.std_error                      # (7.4954, 0.0127)
+res.confidence_interval()                     # (7.4706, 7.5203)
+```
+
+`python examples/quickstart.py` runs the full tour, including implied
+volatility and variance-reduced Monte Carlo.
+
+## Methods
+
+| method | error vs closed form | cost driver | when it wins |
+|---|---|---|---|
+| Black–Scholes (`bs_price`) | exact | O(1) | always, when a closed form exists |
+| CRR binomial (`crr_price`) | O(1/steps) | O(steps²) node updates | small trees, deterministic error |
+| Monte Carlo (`mc_price`) | O(N^-1/2) statistical | O(N) paths | no closed form / path-dependence (out of scope here), error bars for free |
+
+Everything is seeded (`numpy.random.default_rng`), so all results below are
+exactly reproducible.
 
 ## Results
 
-### How close is Monte Carlo to Black–Scholes?
+### 1. How close is Monte Carlo to Black–Scholes?
 
 For an ATM 1y call (S=100, K=100, r=5%, σ=20%, BS price 10.4506), plain MC with
 a fixed seed lands within its reported confidence interval of the closed form.
@@ -31,7 +63,7 @@ reported standard error and decays as O(N^-1/2):
 
 ![MC convergence](reports/convergence.png)
 
-### How many simulations for 1% error?
+### 2. How many simulations for 1% error?
 
 **≈ 20,000 paths** bring the standard error of the ATM call under 1% of its
 price (pilot-run estimate: 19,751; see `qpricer.mc.convergence.paths_for_relative_error`).
@@ -39,7 +71,7 @@ The quadratic cost of accuracy: 0.5% error needs 4× that, 0.1% needs 100×.
 
 Reproduce with `python scripts/run_convergence.py`.
 
-### How much faster is Numba than plain NumPy?
+### 3. How much faster is Numba than plain NumPy?
 
 The numba kernels fuse exp, payoff and accumulation into one allocation-free
 pass over pre-drawn normals (median of 7 runs, JIT warm-up excluded, WSL2;
@@ -61,7 +93,7 @@ attack the same memory-traffic problem, by fusion or by in-place ufuncs.
 
 Reproduce with `python benchmarks/bench_mc.py`.
 
-### How effective are variance reduction techniques?
+### 4. How effective are variance reduction techniques?
 
 Variance reduction factor vs plain MC at equal path count (400k paths, 1y
 calls; a factor of R means plain MC needs R× more paths for the same error):
@@ -82,20 +114,46 @@ OTM tail.
 
 Reproduce with `python scripts/run_variance_reduction.py`.
 
-## Roadmap
+## Project structure
 
-- [x] Core instrument and market data types
-- [x] Black–Scholes analytic prices, Greeks and implied volatility
-- [x] Cox–Ross–Rubinstein binomial tree
-- [x] Monte Carlo engine with error estimates
-- [x] Variance reduction: antithetic and control variates
-- [x] Convergence study and error analysis
-- [ ] Numba-accelerated kernels and benchmarks
-- [ ] Profiling-driven optimization
+```
+src/qpricer/
+├── instruments.py            EuropeanOption + payoffs
+├── market.py                 MarketData (spot, rate, vol, dividend yield)
+├── analytic/
+│   ├── black_scholes.py      prices, all first-order Greeks
+│   └── implied_vol.py        Newton + bisection fallback, no-arbitrage bounds
+├── tree/binomial.py          CRR: loop reference + vectorized induction
+└── mc/
+    ├── engine.py             seeded GBM MC, batching, backend selection
+    ├── variance_reduction.py antithetic / control variate / combined
+    ├── numba_kernels.py      optional fused JIT kernels (serial + prange)
+    └── convergence.py        error studies, paths-for-target-error
+scripts/                      report generators (reports/ holds their output)
+benchmarks/                   timing harness + cProfile driver
+tests/                        189 tests: parity properties, FD Greeks checks,
+                              statistical 3σ tests, kernel equivalence
+```
+
+## Correctness approach
+
+- **Closed form as ground truth**: MC and tree prices are tested against
+  Black–Scholes — statistically (within 3 SE) and by convergence rate.
+- **Properties, not just examples**: put–call parity holds as a hypothesis
+  property; Greeks match central finite differences; implied vol round-trips
+  across a moneyness/maturity/vol grid.
+- **Reference implementations**: the vectorized tree must match its explicit
+  loop version to 1e-12; numba kernels must match the NumPy engine on shared
+  random draws.
 
 ## Development
 
 ```bash
 pip install -e ".[dev,perf,analysis]"
-pytest
+pytest                  # test suite
+ruff check . && ruff format --check .
+mypy src                # strict mode
 ```
+
+CI runs lint, strict type-checking and the test matrix (3.11/3.12) on every
+push.
