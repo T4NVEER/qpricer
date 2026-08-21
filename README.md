@@ -56,6 +56,27 @@ only pays above ~1M paths; below that, thread startup dominates.
 
 Reproduce with `python benchmarks/bench_mc.py`.
 
+### How effective are variance reduction techniques?
+
+Variance reduction factor vs plain MC at equal path count (400k paths, 1y
+calls; a factor of R means plain MC needs R× more paths for the same error):
+
+| strike | antithetic | control variate | antithetic + CV |
+|---|---|---|---|
+| 70 (deep ITM) | 17.3× | 406× | 942× |
+| 100 (ATM) | 2.0× | 6.8× | 28× |
+| 130 (deep OTM) | 1.1× | 1.7× | 13× |
+
+![Variance reduction](reports/variance_reduction.png)
+
+Both techniques exploit the payoff's near-linearity in S_T, so they shine ITM
+(the terminal-spot control absorbs almost all variance) and fade OTM, where
+the payoff is dominated by its nonlinear kink. Note the factors are themselves
+noisy estimates — single-seed values for the combined technique wobble in the
+OTM tail.
+
+Reproduce with `python scripts/run_variance_reduction.py`.
+
 ## Roadmap
 
 - [x] Core instrument and market data types
