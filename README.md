@@ -24,11 +24,11 @@ from qpricer import EuropeanOption, MarketData, OptionType, bs_price, crr_price,
 market = MarketData(spot=100.0, rate=0.05, vol=0.2, dividend_yield=0.01)
 call = EuropeanOption(strike=105.0, maturity=1.0, option_type=OptionType.CALL)
 
-bs_price(call, market)                        # 7.4917 (closed form)
-crr_price(call, market, steps=1000)           # 7.4915 (binomial tree)
+bs_price(call, market)  # 7.4917 (closed form)
+crr_price(call, market, steps=1000)  # 7.4915 (binomial tree)
 res = mc_price(call, market, n_paths=1_000_000, seed=42)
-res.price, res.std_error                      # (7.4954, 0.0127)
-res.confidence_interval()                     # (7.4706, 7.5203)
+res.price, res.std_error  # (7.4954, 0.0127)
+res.confidence_interval()  # (7.4706, 7.5203)
 ```
 
 `python examples/quickstart.py` runs the full tour, including implied
@@ -75,7 +75,7 @@ Reproduce with `python scripts/run_convergence.py`.
 
 The numba kernels fuse exp, payoff and accumulation into one allocation-free
 pass over pre-drawn normals (median of 7 runs, JIT warm-up excluded, WSL2;
-NumPy column is after the profiling-driven in-place optimization — see
+NumPy column is after the profiling-driven in-place optimization; see
 `reports/profiling.md`):
 
 | paths | NumPy | numba | numba speedup | numba_parallel speedup |
@@ -85,7 +85,7 @@ NumPy column is after the profiling-driven in-place optimization — see
 | 10,000,000 | 316.4 ms | 155.2 ms | 2.0× | 2.5× |
 
 All backends share the NumPy random draws, which cost roughly a third of the
-NumPy runtime — an Amdahl's-law ceiling on the achievable speedup. Parallelism
+NumPy runtime, creating an Amdahl's-law ceiling on the achievable speedup. Parallelism
 only pays around ~1M paths and above; below that, thread startup dominates and
 small-N timings are noisy. Optimizing the NumPy path (10M: 386 → 315 ms by
 removing temporary allocations) narrowed numba's edge from 2.4× to 2.0×: both
@@ -109,7 +109,7 @@ calls; a factor of R means plain MC needs R× more paths for the same error):
 Both techniques exploit the payoff's near-linearity in S_T, so they shine ITM
 (the terminal-spot control absorbs almost all variance) and fade OTM, where
 the payoff is dominated by its nonlinear kink. Note the factors are themselves
-noisy estimates — single-seed values for the combined technique wobble in the
+noisy estimates, since single-seed values for the combined technique wobble in the
 OTM tail.
 
 Reproduce with `python scripts/run_variance_reduction.py`.
@@ -138,7 +138,7 @@ tests/                        189 tests: parity properties, FD Greeks checks,
 ## Correctness approach
 
 - **Closed form as ground truth**: MC and tree prices are tested against
-  Black–Scholes — statistically (within 3 SE) and by convergence rate.
+  Black–Scholes, both statistically (within 3 SE) and by convergence rate.
 - **Properties, not just examples**: put–call parity holds as a hypothesis
   property; Greeks match central finite differences; implied vol round-trips
   across a moneyness/maturity/vol grid.

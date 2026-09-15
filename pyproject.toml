@@ -11,7 +11,7 @@ license = { file = "LICENSE" }
 authors = [{ name = "Tanveer" }]
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=1.26,<2.5",
 ]
 
 [project.optional-dependencies]
